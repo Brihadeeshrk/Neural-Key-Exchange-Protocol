@@ -92,3 +92,11 @@ def test_all():
 
 
 test_all()
+
+"""
+on running, all functions except SYNCHRONISE_TEST() display messages
+in terminal, error appears to be in test.py 94 90 80
+and main.py 51 25
+and tom.py 115
+typeerror: list indices must be integers or slices, not float
+"""
