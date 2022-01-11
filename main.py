@@ -1,12 +1,16 @@
 from tpm import *
 from cryptography.fernet import Fernet
-import hashlib
-import base64
-import os
+
+# import hashlib
+# import base64
+# import os
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+
+print("Enter the word you want to encrypt\n")
+ui = raw_input()
 
 N = 4  # Number of input neurons per hidden neuron
 K = 128  # Number of neurons in hidden layer
@@ -51,44 +55,14 @@ for i in range(len(a.weights)):
         exit()
 print("Weights have synced.")
 
-print(hashlib.algorithms_available)
+# ------------------------------
+# now, the code works until here, now i need to find a way to make the weights into a 'Key'
 
-# convert weights to base64
-weights64 = "".join([str(c) for c in a.weights])
-base64_bytes = base64.b64encode(weights64)
-
-password = weights64
-salt = os.urandom(16)
-
-#kdf = PBKDF2HMAC(
-#    algorithm=hashes.SHA256(),
-#    length=32,
-#    salt=salt,
-#    iterations=390000,
-#    backend=default_backend(),
-#)
-key = base64.urlsafe_b64encode(kdf.derive(password))
+key = Fernet.generate_key()
 f = Fernet(key)
+token = f.encrypt(ui)
 
-# print("STRING: \n\n", weightStr)
-# f = Fernet(key)
-# token = f.encrypt(b"my deep dark secret")
-# print(token)
-# token = f.decrypt(token)
-# print("after\n")
-# print(token)
+print("ENCRYPTED DATA: \n\n", token)
 
-k = hashlib.sha256()
-# print(hashlib.algorithms_available)
-# # k.update(a.weights)
-# k.update(base64_bytes)
-
-# key = k.digest()
-print(key)
-
-# f = Fernet(key)
-user_input = input("Enter the String you want to Encrypt: \n")
-token = f.encrypt(user_input)
-
-print("token: \n\n")
-print(token)
+token = f.decrypt(token)
+print("DECRYPTED DATA: \n\n", token)
