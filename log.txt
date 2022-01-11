@@ -1,0 +1,7 @@
+problem identified
+when we use that hash funcion in pbkf2 or whatever, that function has a limiter ig, which limits the number of characters in the 
+password
+due to which, when i try to hash the weightedString, it shows an error
+and this persists for all versions ie, base64 or else
+i tried the hash using smaller strings, hashing and verification works
+so, problem has to be with our weights
