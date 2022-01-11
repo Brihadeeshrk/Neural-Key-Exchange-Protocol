@@ -1,13 +1,12 @@
+import hashlib
 from tpm import *
 from cryptography.fernet import Fernet
 
-# import hashlib
-# import base64
-# import os
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+import hashlib
+import os
+import binascii
+import base64
+
 
 print("Enter the word you want to encrypt\n")
 ui = raw_input()
@@ -58,11 +57,47 @@ print("Weights have synced.")
 # ------------------------------
 # now, the code works until here, now i need to find a way to make the weights into a 'Key'
 
-key = Fernet.generate_key()
-f = Fernet(key)
-token = f.encrypt(ui)
 
-print("ENCRYPTED DATA: \n\n", token)
+def hash_password(password):
+    salt = hashlib.sha256(os.urandom(60)).hexdigest().encode("ascii")
+    pwdhash = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), salt, 200000)
+    pwdhash = binascii.hexlify(pwdhash)
+    return (salt + pwdhash).decode("ascii")
 
-token = f.decrypt(token)
-print("DECRYPTED DATA: \n\n", token)
+
+def verify_password(stored_password, provided_password):
+    salt = stored_password[:64]
+    pwdhash = hashlib.pbkdf2_hmac(
+        "sha512", provided_password.encode("utf-8"), salt.encode("ascii"), 200000
+    )
+    stored_password = stored_password[64:]
+    pwdhash = binascii.hexlify(pwdhash).decode("ascii")
+    return pwdhash == stored_password
+
+
+strWeight = "".join([str(x) for x in a.weights])
+# base64_bytes = base64.b64encode(strWeight)
+
+hp = hash_password(base64_bytes)
+print(hp)
+x = verify_password(
+    hp,
+    "111"
+)
+y = verify_password(hp, "1111")
+print(x,y)
+
+# # m = hashlib.sha512()
+# # m.update(strWeight)
+# salt = os.urandom(32)
+# dk = hashlib.pbkdf2_hmac("sha512", strWeight.encode("utf-8"), salt, 200000)
+
+# print(dk.hex())
+# key = Fernet.generate_key()
+# f = Fernet(m.copy())
+# token = f.encrypt(ui)
+
+# print("ENCRYPTED DATA: \n\n", token)
+
+# token = f.decrypt(token)
+# print("DECRYPTED DATA: \n\n", token)
