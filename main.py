@@ -1,4 +1,4 @@
-from treeParityMachine import tpm
+from tpm import TPM
 import cryptography
 import os
 from cryptography.hazmat.primitives import hashes
@@ -11,8 +11,8 @@ K = 2        # Number of neurons in hidden layer
 L = 3        # Range of values that weights can take {-L, ..., L}
 
 # Create two tree parity machines
-a = tpm(N, K, L)
-b = tpm(N, K, L)
+a = TPM(N, K, L)
+b = TPM(N, K, L)
 
 # Generate random weights for both machines
 a.randomWeights()
