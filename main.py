@@ -1,23 +1,18 @@
-import hashlib
-from tpm import *
-from cryptography.fernet import Fernet
-
-import hashlib
+from treeParityMachine import tpm
+import cryptography
 import os
-import binascii
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.fernet import Fernet
 import base64
 
-
-print("Enter the word you want to encrypt\n")
-ui = raw_input()
-
-N = 4  # Number of input neurons per hidden neuron
-K = 128  # Number of neurons in hidden layer
-L = 1  # Range of values that weights can take {-L, ..., L}
+N = 101      # Number of input neurons per hidden neuron
+K = 2        # Number of neurons in hidden layer
+L = 3        # Range of values that weights can take {-L, ..., L}
 
 # Create two tree parity machines
-a = TPM(N, K, L)
-b = TPM(N, K, L)
+a = tpm(N, K, L)
+b = tpm(N, K, L)
 
 # Generate random weights for both machines
 a.randomWeights()
@@ -43,10 +38,6 @@ while True and count < 500:
         b.HebbianLearning(b.output, a.output)
     count += 1
 
-# Print final weights
-print(a.weights)
-print(b.weights)
-
 # Check whether weights are the same
 for i in range(len(a.weights)):
     if a.weights[i] != b.weights[i]:
@@ -54,50 +45,24 @@ for i in range(len(a.weights)):
         exit()
 print("Weights have synced.")
 
-# ------------------------------
-# now, the code works until here, now i need to find a way to make the weights into a 'Key'
+# Create
+l = ''.join([str(x) for x in a.weights])
 
+salt = os.urandom(16)
 
-def hash_password(password):
-    salt = hashlib.sha256(os.urandom(60)).hexdigest().encode("ascii")
-    pwdhash = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), salt, 200000)
-    pwdhash = binascii.hexlify(pwdhash)
-    return (salt + pwdhash).decode("ascii")
-
-
-def verify_password(stored_password, provided_password):
-    salt = stored_password[:64]
-    pwdhash = hashlib.pbkdf2_hmac(
-        "sha512", provided_password.encode("utf-8"), salt.encode("ascii"), 200000
-    )
-    stored_password = stored_password[64:]
-    pwdhash = binascii.hexlify(pwdhash).decode("ascii")
-    return pwdhash == stored_password
-
-
-strWeight = "".join([str(x) for x in a.weights])
-# base64_bytes = base64.b64encode(strWeight)
-
-hp = hash_password(base64_bytes)
-print(hp)
-x = verify_password(
-    hp,
-    "111"
+kdf = PBKDF2HMAC(
+    algorithm=hashes.SHA256(),
+    length=32,
+    salt=salt,
+    iterations=390000,
 )
-y = verify_password(hp, "1111")
-print(x,y)
 
-# # m = hashlib.sha512()
-# # m.update(strWeight)
-# salt = os.urandom(32)
-# dk = hashlib.pbkdf2_hmac("sha512", strWeight.encode("utf-8"), salt, 200000)
+key = base64.urlsafe_b64encode(kdf.derive(l.encode()))
+print(key)
 
-# print(dk.hex())
-# key = Fernet.generate_key()
-# f = Fernet(m.copy())
-# token = f.encrypt(ui)
+f = Fernet(key)
 
-# print("ENCRYPTED DATA: \n\n", token)
+token = input("Enter text: ")
 
-# token = f.decrypt(token)
-# print("DECRYPTED DATA: \n\n", token)
+print("E:", f.encrypt(token.encode()))
+print("D:", f.decrypt(f.encrypt(token.encode())).decode())
