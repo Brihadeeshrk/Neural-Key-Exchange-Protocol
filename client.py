@@ -11,13 +11,15 @@ def client_program():
 
     message = input("Enter Data to be Encrypted:\t")  # take input
 
+    client_socket.send(message.encode())  # send message
+    data = client_socket.recv(1024).decode()  # receive response
     while message.lower().strip() != 'bye':
         client_socket.send(message.encode())  # send message
         data = client_socket.recv(1024).decode()  # receive response
 
         print('Received from server: \n' + data)  # show in terminal
 
-        message = input(" -> ")  # again take input
+        message = input(" Send Query -> ")  # again take input
 
     client_socket.close()  # close the connection
 
