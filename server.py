@@ -1,121 +1,103 @@
+#!/usr/bin/env python3
+
 from tpm import TPM
-import os
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import Fernet
 import base64
 import socket
 
+N = 101      # number of input neurons per hidden neuron
+K = 2        # number of neurons in hidden layer
+L = 3        # range of values that weights can take {-L, ..., L}
 
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+print('\033c')
 
+# create tree parity machine
+print("Creating tree parity machine")
+tree = TPM(N, K, L)
 
-def server_program():
-    weightsFlag = False
-    weight_alert = ""
-    N = 101      # Number of input neurons per hidden neuron
-    K = 2        # Number of neurons in hidden layer
-    L = 3        # Range of values that weights can take {-L, ..., L}
+# Generate random weights for the machine
+print("Generating random weights for machine")
+tree.randomWeights()
 
-    # Create two tree parity machines
-    a = TPM(N, K, L)
-    b = TPM(N, K, L)
+print("Initializing networking")
+# get the hostname
+host = socket.gethostname()
+port = 5000  # initiate port no above 1024
 
-    # Generate random weights for both machines
-    a.randomWeights()
-    b.randomWeights()
+server_socket = socket.socket()  # get instance
+server_socket.bind((host, port))  # bind host address and port together
 
-    # Perform syncing for key exchange
-    count = 0
-    while True and count < 500:
-        # Create random inputs (same inputs for both machines)
-        a.randomInputs()
-        b.inputs = a.inputs
+# configure how many client the server can listen simultaneously
+server_socket.listen(2)
+conn, address = server_socket.accept()  # accept new connection
+print("Connected to " + address[0] + ":" + str(address[1]))
 
-        # Calculate outputs for both machines
-        a.calcWeights2()
-        a.tow()
+# perform key exchange
+print("Beginning key exchange")
+print(tree.weights)
+count = 0
+while count < 500:
+  # Create random inputs (same inputs for both machines)
+  tree.randomInputs()
+  message = str(tree.inputs)
+  conn.send(message.encode())
 
-        b.calcWeights2()
-        b.tow()
+  # Calculate output
+  tree.calcWeights2()
+  tree.tow()
 
-        # Perform Hebbian learning if outputs are the same
-        if a.output == b.output:
-            a.HebbianLearning(a.output, b.output)
-            b.HebbianLearning(b.output, a.output)
-        count += 1
+  # send output
+  message = str(tree.output)
+  conn.send(message.encode())
 
-    # Check whether weights are the same
-    for i in range(len(a.weights)):
-        if a.weights[i] != b.weights[i]:
-            weightsFlag = False
-            exit()
-    weightsFlag = True
+  # recieve output
+  message = conn.recv(1024).decode()
+  output = int(message)
 
-    # Create
-    l = ''.join([str(x) for x in a.weights])
+  # perform Hebbian learning if outputs are the same
+  if output == tree.output:
+    tree.HebbianLearning(tree.output, output)
+    print("\033[6;0H")
+    print(tree.weights)
 
-    salt = os.urandom(16)
+  count += 1
 
-    kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=salt,
-        iterations=390000,
-    )
+print("\033[6;0H")
+print(tree.weights)
+print("Weights synced successfully")
 
-    key = base64.urlsafe_b64encode(kdf.derive(l.encode()))
-    print("KEY: ", key)
-    f = Fernet(key)
+# generate key from weights
+print("Generating key from weights")
+l = ''.join([str(x) for x in tree.weights])
+kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32,
+                 salt=b'', iterations=390000)
+key = base64.urlsafe_b64encode(kdf.derive(l.encode()))
+print("Generated key is")
+print(key)
 
-    # get the hostname
-    host = socket.gethostname()
-    port = 5000  # initiate port no above 1024
+# encryption
+f = Fernet(key)
 
-    server_socket = socket.socket()  # get instance
-    # look closely. The bind() function takes tuple as argument
-    server_socket.bind((host, port))  # bind host address and port together
+# messaging
+print("Starting encrypted chat")
+while True:
+  message = input("> ")
+  message = f.encrypt(message.encode())
+  conn.send(message)  # send data to the client
 
-    # configure how many client the server can listen simultaneously
-    server_socket.listen(2)
-    conn, address = server_socket.accept()  # accept new connection
-    print("Connection from: " + str(address))
-    if weightsFlag:
-        weight_alert = "\n{}WEIGHTS SYNCED{}".format(
-            bcolors.OKBLUE, bcolors.ENDC)
-    else:
-        weight_alert = "\n{}WEIGHTS HAVE NOT SYNCED{}".format(
-            bcolors.WARNING, bcolors.ENDC)
-    while True:
-        conn.send(weight_alert.encode())  # send weights alert to the client
-        # receive data stream. it won't accept data packet greater than 1024 bytes
+  # receive data stream. it won't accept data packet greater than 1024 bytes
+  data = conn.recv(1024)
+  if not data:
+    break
 
-        data = conn.recv(1024).decode()
-        if not data:
-            # if data is not received break
-            break
-        print("Message to be Encrypted: " + str(data))
-        token = str(data)
-        enc_data = f.encrypt(token.encode())
-        print("Encoded Message:\t", enc_data)
-        dec_data = f.decrypt(f.encrypt(token.encode())).decode()
-        print("Decoded Message:\t", dec_data)
-        # data = "Decoded Message:\t", f.decrypt(
-        #     f.encrypt(token.encode())).decode()
-        data = "Encrypted Message: {}".format(enc_data)
-        conn.send(data.encode())  # send data to the client
+  data = f.decrypt(data).decode()
+  print(data)
 
-    conn.close()  # close the connection
+  # exit if 'bye'
+  if data == "bye":
+    break
 
-
-if __name__ == '__main__':
-    server_program()
+print("Closing connection")
+conn.close()  # close the connection
