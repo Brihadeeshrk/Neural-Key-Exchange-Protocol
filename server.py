@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from tpm import TPM
+from treeParityMachine import tpm
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import Fernet
@@ -15,7 +15,7 @@ print('\033c')
 
 # create tree parity machine
 print("Creating tree parity machine")
-tree = TPM(N, K, L)
+tree = tpm(N, K, L)
 
 # Generate random weights for the machine
 print("Generating random weights for machine")
@@ -71,8 +71,7 @@ print("Weights synced successfully")
 # generate key from weights
 print("Generating key from weights")
 l = ''.join([str(x) for x in tree.weights])
-kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32,
-                 salt=b'', iterations=390000)
+kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=b'', iterations=390000)
 key = base64.urlsafe_b64encode(kdf.derive(l.encode()))
 print("Generated key is")
 print(key)
@@ -86,7 +85,7 @@ while True:
   message = input("> ")
   message = f.encrypt(message.encode())
   conn.send(message)  # send data to the client
-
+  
   # receive data stream. it won't accept data packet greater than 1024 bytes
   data = conn.recv(1024)
   if not data:

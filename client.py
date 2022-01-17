@@ -1,5 +1,7 @@
+#!/usr/bin/env python3
+
 import numpy as np
-from tpm import TPM
+from treeParityMachine import tpm
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import Fernet
@@ -14,7 +16,7 @@ print('\033c')
 
 # create tree parity machine
 print("Creating tree parity machine")
-tree = TPM(N, K, L)
+tree = tpm(N, K, L)
 
 # Generate random weights for the machine
 print("Generating random weights for machine")
@@ -34,31 +36,32 @@ print("Beginning key exchange")
 print(tree.weights)
 count = 0
 while count < 500:
-    message = client_socket.recv(1024).decode()
-    message = message.replace('  ', ',').replace(' ', ',')
-    if message[1] == ',':
-        tree.inputs = eval(message.replace(',', '', 1))
-    else:
-        tree.inputs = eval(message)
+  message = client_socket.recv(1024).decode()
+  message = message.replace('  ', ',').replace(' ', ',')
+  if message[1] == ',':
+    message = message.replace(',', '', 1)
+  while message[-1] != ']':
+    message = message[:-1]
+  tree.inputs = eval(message)
 
-    # calculate output
-    tree.calcWeights2()
-    tree.tow()
+  # calculate output
+  tree.calcWeights2()
+  tree.tow()
 
-    # recieve output
-    message = client_socket.recv(1024).decode()
-    output = int(message)
+  # recieve output
+  message = client_socket.recv(1024).decode()
+  output = int(message)
 
-    # send output
-    message = client_socket.send(str(tree.output).encode())
+  # send output
+  message = client_socket.send(str(tree.output).encode())
 
-    # perform Hebbian learning if outputs are the same
-    if output == tree.output:
-        tree.HebbianLearning(tree.output, output)
-        print("\033[6;0H")
-        print(tree.weights)
+  # perform Hebbian learning if outputs are the same
+  if output == tree.output:
+    tree.HebbianLearning(tree.output, output)
+    print("\033[6;0H")
+    print(tree.weights)
 
-    count += 1
+  count += 1
 
 print("\033[6;0H")
 print(tree.weights)
@@ -67,8 +70,7 @@ print("Weights synced successfully")
 # generate key from weights
 print("Generating key from weights")
 l = ''.join([str(x) for x in tree.weights])
-kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32,
-                 salt=b'', iterations=390000)
+kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=b'', iterations=390000)
 key = base64.urlsafe_b64encode(kdf.derive(l.encode()))
 print("Generated key is")
 print(key)
@@ -79,20 +81,20 @@ f = Fernet(key)
 # messaging
 print("Starting encrypted chat")
 while True:
-    data = client_socket.recv(1024)  # receive response
-    if not data:
-        break
+  data = client_socket.recv(1024)  # receive response
+  if not data:
+    break
 
-    data = f.decrypt(data).decode()
-    print(data)
+  data = f.decrypt(data).decode()
+  print(data)
 
-    # exit if 'bye'
-    if data == "bye":
-        break
+  # exit if 'bye'
+  if data == "bye":
+    break
 
-    message = input("> ")  # take input
-    message = f.encrypt(message.encode())
-    client_socket.send(message)  # send message
+  message = input("> ")  # take input
+  message = f.encrypt(message.encode())
+  client_socket.send(message)  # send message
 
 print("Closing connection")
 client_socket.close()  # close the connection

@@ -1,0 +1,18 @@
+diff --git a/client.py b/client.py
+index f6b0d09..acae9fe 100644
+--- a/client.py
++++ b/client.py
+@@ -39,9 +39,10 @@ while count < 500:
+   message = client_socket.recv(1024).decode()
+   message = message.replace('  ', ',').replace(' ', ',')
+   if message[1] == ',':
+-    tree.inputs = eval(message.replace(',', '', 1))
+-  else:
+-    tree.inputs = eval(message)
++    message = message.replace(',', '', 1)
++  while message[-1] != ']':
++    message = message[:-1]
++  tree.inputs = eval(message)
+ 
+   # calculate output
+   tree.calcWeights2()
